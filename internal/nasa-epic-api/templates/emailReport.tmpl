@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Matched Coordinate Nasa Records in the most recent run</title>
+    <style>
+        table,
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+    </style>
+</head>
+<body>
+<p>List of Nasa recordings which are in the matched coordinate range for the most recent run:</p>
+<table>
+    <tr>
+        <th>Date</th>
+        <th>Link</th>
+        <th>Identifier</th>
+	</tr>
+	{{range .Recordings}}
+    <tr>
+        <td>{{.FormattedDateStr}}</td>
+        <td>
+            <a href="{{.S3Location}}" target="_blank">{{.S3Location}}</a>
+        </td>
+        <td>{{.Identifier}}</td>
+    </tr>
+	{{end}}
+</table>
+<p>Historical report including data from all previous runs can be found <a href="{{.WebsiteURL}}">here</a></p>
+</body>
+</html>

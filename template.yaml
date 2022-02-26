@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  nasa-epic-project
+  
+  SAM Template for nasa-epic-project
+
+Globals:
+  Function:
+    Timeout: 900    # 15 min timeout
+
+Resources:
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/
+      Handler: main
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Tracing: Active
+
+      # Attach inline policies to existing IAM role
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Action:
+                - 'dynamodb:PutItem'
+                - 'dynamodb:GetItem'
+                - 'dynamodb:Scan'
+              Effect: Allow
+              Resource: 'arn:aws:dynamodb:eu-west-1:633681147894:table/mike-price-test-recordings-2'
+              Sid: 'DatabaseAccess'
+        - Version: 2012-10-17
+          Statement:
+            - Action:
+                - 's3:PutObject'
+              Effect: Allow
+              Resource:
+                - 'arn:aws:s3:::mike-price-test-recordings-image-upload/*'
+              Sid: 'AllowUploadImagesToS3'
+        - Version: 2012-10-17
+          Statement:
+            - Action:
+                - 'ses:SendEmail'
+              Effect: Allow
+              Resource: '*'
+              Sid: 'AllowSendEmailReport'
+      Environment:
+        Variables:
+          dayRangeStr: 7                  # Number of days to query the NASA API for
+          dbTableName: !Ref Database
+          uploadS3BucketName: !Ref StateBucket
+          region: eu-west-1
+          emailSender: michael.price@10xbanking.com
+          emailRecipientsStr: michaelprice232@outlook.com
+          targetCoordinateslatMin: "-27"
+          targetCoordinateslatMax: "-25"
+          targetCoordinateslonMin: "16"
+          targetCoordinateslonMax: "33"
+
+      # Trigger via EventsBridge on a cron schedule
+      Events:
+        CWSchedule:
+          Type: Schedule
+          Properties:
+            Name: "execute-nasa-epic-project-lambda"
+            Description: "Runs the nasa-epic-project lambda to query the Nasa API"
+
+            # 2AM every day
+            Schedule: "cron(0 2 * * ? *)"
+
+  StateBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: mike-price-test-recordings-image-upload
+      WebsiteConfiguration:
+        ErrorDocument: "index.html"
+        IndexDocument: "index.html"
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StateBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            - Action:
+              - 's3:GetObject'
+              Effect: Allow
+              Resource: !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref StateBucket
+                  - /*
+              Principal: '*'
+
+  Database:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "mike-price-test-recordings-2"
+      AttributeDefinitions:
+        - AttributeName: "Identifier"
+          AttributeType: "S"
+        - AttributeName: "FormattedDateStr"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "Identifier"
+          KeyType: "HASH"
+        - AttributeName: "FormattedDateStr"
+          KeyType: "RANGE"
+      BillingMode: "PAY_PER_REQUEST"
+      Tags:
+        - Key: "Owner"
+          Value: "Michael Price"
+        - Key: "Purpose"
+          Value: "Testing"
